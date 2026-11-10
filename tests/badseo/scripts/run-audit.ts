@@ -70,11 +70,13 @@ async function crawl(origin: string): Promise<{
   pages: CrawledPageResult[];
   links: CrawlLink[];
   completed: boolean;
+  llmsTxtMissing: boolean;
 }> {
-  const { urls: sitemapUrls, robotsText } = await discoverUrls(
-    origin,
-    MAX_PAGES,
-  );
+  const {
+    urls: sitemapUrls,
+    robotsText,
+    llmsTxtMissing,
+  } = await discoverUrls(origin, MAX_PAGES);
   const robots = parseRobotsTxt(origin, robotsText);
   const sitemapSet = new Set(
     sitemapUrls.map((u) => normalizeUrl(u)).filter((u): u is string => !!u),
@@ -155,7 +157,7 @@ async function crawl(origin: string): Promise<{
 
   const completed =
     !throttle.stopped && linkQueue.length === 0 && sitemapQueue.length === 0;
-  return { pages, links, completed };
+  return { pages, links, completed, llmsTxtMissing };
 }
 
 /** In-memory equivalents of the two D1-backed multipage checks. */
@@ -252,7 +254,7 @@ async function main() {
   await warmup();
   const origin = new URL(BASE).origin;
   const startUrl = normalizeUrl(`${origin}/`) ?? `${origin}/`;
-  const { pages, links, completed } = await crawl(origin);
+  const { pages, links, completed, llmsTxtMissing } = await crawl(origin);
 
   if (process.env.DEBUG_DEPTH) {
     for (const p of pages) {
@@ -270,6 +272,15 @@ async function main() {
   detected.push(...findRedirectChainsAndLoops(slim));
   detected.push(...findBrokenInternalLinks(pages, links));
   if (completed) detected.push(...findOrphanPages(pages, links, startUrl));
+  // The site serves no /llms.txt (the catch-all answers 404), so the site-level
+  // issue is expected, as the audit workflow records it.
+  if (llmsTxtMissing) {
+    detected.push({
+      issueType: "missing-llms-txt",
+      pageId: null,
+      pageUrl: `${origin}/llms.txt`,
+    });
+  }
 
   const byUrl = new Map<string, Set<IssueId>>();
   for (const issue of detected) {
@@ -391,6 +402,21 @@ async function main() {
     });
   }
 
+  // Site-level: /llms.txt is not a crawled page, so it has no fixture.
+  {
+    const url = `${origin}/llms.txt`;
+    const ok = (byUrl.get(url) ?? new Set<IssueId>()).has("missing-llms-txt");
+    if (!ok) failures++;
+    rows.push({
+      name: "Missing /llms.txt (site level)",
+      url,
+      ok,
+      detail: ok
+        ? c.green("missing-llms-txt")
+        : c.red("missing: missing-llms-txt"),
+    });
+  }
+
   // ---- report ----
   const pad = Math.max(...rows.map((r) => r.name.length));
   for (const r of rows) {
@@ -407,7 +433,10 @@ async function main() {
   );
 
   // Coverage: every audit issue type should be exercised by at least one page.
-  const exercised = new Set(allFixtures.flatMap((f) => f.expectedIssues));
+  const exercised = new Set<IssueId>([
+    ...allFixtures.flatMap((f) => f.expectedIssues),
+    "missing-llms-txt",
+  ]);
   const allTypes = Object.keys(AUDIT_ISSUE_TYPES) as IssueId[];
   const uncovered = allTypes.filter((id) => !exercised.has(id));
   console.log(

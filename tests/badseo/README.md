@@ -21,16 +21,21 @@ tool.
 Every issue type in the OpenSEO audit engine is exercised by at least one page
 (the harness enforces this). Pages are grouped by category:
 
-| Category                     | Pages                                                                                                         |
-| ---------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| **Head tags & headings**     | missing title, title too long/short, missing meta, meta too long, missing H1, multiple H1, heading-level skip |
-| **Content quality**          | thin content, images missing alt, duplicate content, duplicate title, duplicate meta description              |
-| **Indexability & canonical** | noindex (meta + `X-Robots-Tag` header), canonicalized to another URL, conflicting canonicals                  |
-| **HTTP status & links**      | 404, 500, 403 (blocked), broken internal link                                                                 |
-| **Redirects**                | redirect chain, redirect loop, trailing-slash canonical (redirect-cycle trap)                                 |
-| **Performance**              | slow server response (TTFB)                                                                                   |
-| **Site structure**           | orphan page, deep click-path                                                                                  |
-| **Kitchen sink**             | one page that breaks six ways at once                                                                         |
+| Category                     | Pages                                                                                                                                      |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Head tags & headings**     | missing title, title too long/short, missing meta, meta too long, missing H1, multiple H1, heading-level skip, missing and invalid JSON-LD |
+| **Content quality**          | thin content, images missing alt, images missing width and height, duplicate content, duplicate title, duplicate meta description          |
+| **Indexability & canonical** | noindex (meta + `X-Robots-Tag` header), canonicalized to another URL, conflicting canonicals, missing canonical                            |
+| **HTTP status & links**      | 404, 500, 403 (blocked), broken internal link                                                                                              |
+| **Redirects**                | redirect chain, redirect loop, trailing-slash canonical (redirect-cycle trap)                                                              |
+| **Performance**              | slow server response (TTFB)                                                                                                                |
+| **Site structure**           | orphan page, deep click-path                                                                                                               |
+| **Kitchen sink**             | one page that breaks six ways at once                                                                                                      |
+
+The site also serves no `/llms.txt` on purpose (the catch-all answers 404), so
+the harness expects the site-level `missing-llms-txt` issue. Every other page
+carries a self-referencing canonical, one valid JSON-LD block, and images with
+width and height, so only the declared defect shows up.
 
 Browse them all on the homepage at `/#issues`.
 

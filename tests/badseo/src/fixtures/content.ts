@@ -54,6 +54,33 @@ const imagesMissingAlt: Fixture = {
     ),
 };
 
+// an <img> with no width or height -----------------------------------
+const imagesMissingDimensions: Fixture = {
+  path: "/content/images-missing-dimensions",
+  category: CAT,
+  name: "Images missing width and height",
+  summary: "One image on the page has alt text but no width or height.",
+  lesson:
+    "Without width and height the browser cannot reserve space for an image, so the page jumps around as it loads. That layout shift counts against the page in Google's page experience measurements.",
+  expectedIssues: ["images-missing-dimensions"],
+  handler: () =>
+    htmlResponse(
+      renderPage({
+        fixture: imagesMissingDimensions,
+        title: "A page with an image of unknown size",
+        metaDescription:
+          "This page has an image with alt text but no width or height, so the browser cannot hold space for it while it loads.",
+        bodyHtml: `<h1>An image of unknown size</h1>
+<p class="lede">The image below has alt text but no width or height, so the text beneath it jumps when it arrives.</p>
+<img src="/img/placeholder.svg" alt="An illustrative diagram">
+<h2>Why the size matters</h2>
+<p>A browser lays out the page before the images arrive. With width and height on the image tag it can set aside the right amount of room, and the text stays put. Without them it sets aside nothing, and everything below the image shifts down when the file finally loads. Visitors lose their place, and the shift counts against the page in Google's page experience measurements.</p>
+<h2>Getting it right</h2>
+<p>Set width and height to the image's real pixel size and let the stylesheet scale it down for small screens. The browser works out the proportions from those two numbers. Most image plugins and website builders add them for you once the setting is on.</p>`,
+      }),
+    ),
+};
+
 // 11 — the same page served at two URLs (duplicate content + title + meta) --
 const DUP_TITLE = "Pumpkin Spice Latte Recipe";
 const DUP_META =
@@ -85,10 +112,12 @@ const duplicateContent: Fixture = {
     "duplicate-title",
     "duplicate-meta-description",
   ],
-  handler: () =>
+  handler: (ctx) =>
     htmlResponse(
       renderPage({
         fixture: duplicateContent,
+        // Each URL names itself, so neither reads as canonicalized.
+        canonical: ctx.path,
         title: DUP_TITLE,
         metaDescription: DUP_META,
         bodyHtml: DUP_BODY,
@@ -232,6 +261,7 @@ const dupMetaB: Fixture = {
 export const contentFixtures: Fixture[] = [
   thinContent,
   imagesMissingAlt,
+  imagesMissingDimensions,
   duplicateContent,
   dupTitleA,
   dupTitleB,

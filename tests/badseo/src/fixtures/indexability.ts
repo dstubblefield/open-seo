@@ -149,9 +149,45 @@ const canonicalConflict: Fixture = {
     ),
 };
 
+// no canonical at all -------------------------------------------------
+const missingCanonical: Fixture = {
+  path: "/index/missing-canonical",
+  category: CAT,
+  name: "Missing canonical",
+  summary: "No canonical link in the head and none in the HTTP headers.",
+  lesson:
+    "A self-referencing canonical on every page tells search engines which URL is the real one, even when tracking parameters or a different host name reach the same content.",
+  expectedIssues: ["missing-canonical"],
+  handler: () =>
+    htmlResponse(
+      renderPage({
+        fixture: missingCanonical,
+        canonical: null,
+        title: "A page that never names its canonical",
+        metaDescription:
+          "This page is healthy except that it names no canonical URL, in the HTML head or in an HTTP header.",
+        bodyHtml: article({
+          h1: "A page with no canonical URL",
+          lede: "Nothing here says which address is the real one for this content.",
+          sections: [
+            {
+              h2: "Why a self-reference helps",
+              body: "The same page is often reachable at more than one address: with and without www, with a tracking parameter, or over http and https. A canonical link that names the page's own preferred address settles which one counts. Without it, a search engine guesses, and the guess can split the ranking signals across the copies.",
+            },
+            {
+              h2: "Where it goes",
+              body: "Add one link rel=canonical tag to the head of every indexable page, pointing at the full address of that page. Most platforms and SEO plugins can do this for the whole site with one setting. Pages set to noindex do not need one.",
+            },
+          ],
+        }),
+      }),
+    ),
+};
+
 export const indexabilityFixtures: Fixture[] = [
   noindexMeta,
   noindexHeader,
   canonicalized,
   canonicalConflict,
+  missingCanonical,
 ];

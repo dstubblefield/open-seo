@@ -53,6 +53,7 @@ const noOutgoingLinks: Fixture = {
   handler: () =>
     htmlResponse(
       renderDocument({
+        path: noOutgoingLinks.path,
         title: "Page with no outgoing links",
         metaDescription:
           "This healthy page deliberately renders no anchor tags, so crawlers and users reach a dead end.",
