@@ -163,6 +163,11 @@ export interface CrawledPageResult {
    */
   htmlBytes: number;
   /**
+   * True when the HTML was cut off at the download cap, so markup later in the
+   * document was never seen. Transient — not persisted.
+   */
+  truncated: boolean;
+  /**
    * True when a 429 was retried for this URL (whatever the retry returned).
    * Not persisted — narrows the crawl window so the pages after it are
    * fetched more slowly.

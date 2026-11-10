@@ -10,7 +10,6 @@
  */
 import type { AuditIssueType } from "@/shared/audit-issues";
 import type { CrawledPageResult } from "@/server/lib/audit/types";
-import { MAX_HTML_BYTES } from "@/server/lib/audit/html-response";
 
 export interface DetectedIssue {
   issueType: AuditIssueType;
@@ -59,20 +58,17 @@ function reportRawMarkupIssues(
     details?: Record<string, unknown>,
   ) => unknown,
 ) {
+  // A page cut off at the download cap may carry this markup past the cut.
+  const complete = page.isIndexable && !page.truncated;
   if (
-    page.isIndexable &&
+    complete &&
     page.statusCode === 200 &&
     !page.canonicalUrl &&
     !page.headerCanonicalUrl
   ) {
     report("missing-canonical");
   }
-  // A page cut off at the download cap may carry its JSON-LD past the cut.
-  if (
-    page.isIndexable &&
-    !page.hasStructuredData &&
-    page.htmlBytes < MAX_HTML_BYTES
-  ) {
+  if (complete && !page.hasStructuredData) {
     report("missing-structured-data");
   }
   if (page.invalidStructuredData > 0) {

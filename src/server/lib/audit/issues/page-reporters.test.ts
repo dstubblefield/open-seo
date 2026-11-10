@@ -42,6 +42,7 @@ function makePage(overrides: Partial<CrawledPageResult>): CrawledPageResult {
     contentHash: "abc123",
     isHtml: true,
     htmlBytes: 10_000,
+    truncated: false,
     rateLimited: false,
     imagesTotal: 0,
     imagesMissingAlt: 0,
@@ -195,6 +196,7 @@ describe("runPageReporters", () => {
         { headerCanonicalUrl: "https://example.com/a" },
         { isIndexable: false, robotsMeta: "noindex" },
         { statusCode: 203 },
+        { truncated: true },
         { javascriptShell: true },
       ],
     ],
@@ -204,7 +206,7 @@ describe("runPageReporters", () => {
       [
         { isIndexable: false, robotsMeta: "noindex" },
         { javascriptShell: true },
-        { htmlBytes: 1_048_576 },
+        { truncated: true },
       ],
     ],
     [

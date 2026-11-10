@@ -120,6 +120,28 @@ describe("crawlPage", () => {
     });
   });
 
+  // 600,000 two-byte characters are 1.2 MB: past the download cap in bytes,
+  // yet under it in string length.
+  it.each([
+    ["é".repeat(600_000), true],
+    ["é".repeat(1_000), false],
+  ])(
+    "flags a non-ASCII body as truncated only past the cap",
+    async (text, truncated) => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockImplementation(
+          async () =>
+            new Response(`<html><body>${text}</body></html>`, {
+              headers: { "content-type": "text/html" },
+            }),
+        ),
+      );
+
+      expect((await crawl())?.truncated).toBe(truncated);
+    },
+  );
+
   it("preserves extracted metadata and nested values when releasing the HTML", async () => {
     vi.stubGlobal(
       "fetch",

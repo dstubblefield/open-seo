@@ -34,6 +34,7 @@ function page(
     contentHash: null,
     isHtml: true,
     htmlBytes,
+    truncated: false,
     rateLimited: false,
     imagesTotal: 0,
     imagesMissingAlt: 0,
