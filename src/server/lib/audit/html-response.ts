@@ -40,6 +40,21 @@ export async function readTextUpTo(
   return parts.join("");
 }
 
+/**
+ * Whether a body read through `readTextUpTo` stopped at the byte cap. Its
+ * length counts UTF-16 units, so a non-ASCII body can sit far under the cap in
+ * characters while hitting it in bytes; UTF-8 needs at most 3 bytes per unit,
+ * so only a body of at least a third of the cap in units can have reached it.
+ * A cut through a multi-byte character decodes to U+FFFD, which re-encodes to
+ * at least the bytes it replaced.
+ */
+export function reachedByteCap(text: string, maxBytes: number) {
+  return (
+    text.length * 3 >= maxBytes &&
+    new TextEncoder().encode(text).length >= maxBytes
+  );
+}
+
 /** The first `maxBytes` of `text` as UTF-8, as readTextUpTo keeps from a body. */
 export function truncateToBytes(text: string, maxBytes: number) {
   const bytes = new TextEncoder().encode(text);

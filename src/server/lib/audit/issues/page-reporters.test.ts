@@ -24,7 +24,7 @@ function makePage(overrides: Partial<CrawledPageResult>): CrawledPageResult {
     title: "A perfectly reasonable page title",
     metaDescription:
       "A reasonable meta description that says something useful about the page.",
-    canonicalUrl: null,
+    canonicalUrl: "https://example.com/a",
     robotsMeta: null,
     xRobotsTag: null,
     headerCanonicalUrl: null,
@@ -42,12 +42,15 @@ function makePage(overrides: Partial<CrawledPageResult>): CrawledPageResult {
     contentHash: "abc123",
     isHtml: true,
     htmlBytes: 10_000,
+    truncated: false,
     rateLimited: false,
     imagesTotal: 0,
     imagesMissingAlt: 0,
     images: [],
+    imagesMissingDimensions: 0,
     links: [HEALTHY_LINK],
-    hasStructuredData: false,
+    hasStructuredData: true,
+    invalidStructuredData: 0,
     hreflangTags: [],
     isIndexable: true,
     responseTimeMs: 200,
@@ -181,6 +184,52 @@ describe("runPageReporters", () => {
       ),
     ).toEqual(expected);
   });
+
+  // Each markup rule fires on its defect and stays quiet where the defect
+  // cannot be established: an app shell, noindex, a non-200 page, or a body
+  // cut off at the download cap.
+  it.each<[string, Partial<CrawledPageResult>, Partial<CrawledPageResult>[]]>([
+    [
+      "missing-canonical",
+      { canonicalUrl: null },
+      [
+        { headerCanonicalUrl: "https://example.com/a" },
+        { isIndexable: false, robotsMeta: "noindex" },
+        { statusCode: 203 },
+        { truncated: true },
+        { javascriptShell: true },
+      ],
+    ],
+    [
+      "missing-structured-data",
+      { hasStructuredData: false },
+      [
+        { isIndexable: false, robotsMeta: "noindex" },
+        { javascriptShell: true },
+        { truncated: true },
+      ],
+    ],
+    [
+      "invalid-structured-data",
+      { invalidStructuredData: 1 },
+      [{ javascriptShell: true }],
+    ],
+    [
+      "images-missing-dimensions",
+      { imagesMissingDimensions: 2 },
+      [{ javascriptShell: true }],
+    ],
+  ])(
+    "reports %s only where it can be established",
+    (issueType, defect, quiet) => {
+      expect(issueTypes(makePage(defect))).toContain(issueType);
+      for (const overrides of quiet) {
+        expect(issueTypes(makePage({ ...defect, ...overrides }))).not.toContain(
+          issueType,
+        );
+      }
+    },
+  );
 
   it("flags indexability and canonical signals", () => {
     expect(

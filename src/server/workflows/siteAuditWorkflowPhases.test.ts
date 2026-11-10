@@ -207,6 +207,56 @@ describe("runLighthousePhase", () => {
 });
 
 describe("app-shell crawl coverage", () => {
+  it.each([
+    [{ robotsText: "", seededCount: 2, llmsTxtMissing: true }, 1],
+    // An instance replaying a discovery result from before the field existed.
+    [{ robotsText: "", seededCount: 2 }, 0],
+  ])(
+    "reports a missing llms.txt only when discovery says so: %j",
+    async (discovery, expected) => {
+      vi.mocked(AuditRepository.hasPagesForAudit).mockResolvedValue(true);
+      vi.mocked(runCrawlPhase).mockResolvedValue({
+        pagesCrawled: 2,
+        completed: true,
+      });
+      vi.mocked(runMultipageChecks).mockResolvedValue({
+        issues: [],
+        hasUnreadShells: false,
+      });
+      // Only these two scratchpad methods are reached after mocked discovery/crawl.
+      // oxlint-disable-next-line typescript-eslint/no-unsafe-type-assertion
+      vi.mocked(getAuditScratchpad).mockReturnValue({
+        runFinalizeChecks: vi
+          .fn()
+          .mockResolvedValue({ brokenLinks: [], orphanPages: [] }),
+        destroy: vi.fn(),
+      } as unknown as ReturnType<typeof getAuditScratchpad>);
+      pgStepMock.mockImplementation(
+        async (
+          _step: unknown,
+          name: string,
+          _config: unknown,
+          callback: () => Promise<unknown>,
+        ) => (name === "discover-urls-v2" ? discovery : callback()),
+      );
+
+      // pgStep is mocked, so no WorkflowStep implementation is needed.
+      // oxlint-disable-next-line typescript-eslint/no-unsafe-type-assertion
+      await runAuditPhases({} as never, {
+        ...PHASE_PARAMS,
+        config: { maxPages: 50, lighthouseStrategy: "none" },
+        renderUsage: { cloudflareAttempts: 0, contextCredits: 0 },
+      });
+
+      const inserted = vi
+        .mocked(AuditRepository.insertIssues)
+        .mock.calls.at(-1)?.[1];
+      expect(
+        inserted?.filter((issue) => issue.issueType === "missing-llms-txt"),
+      ).toHaveLength(expected);
+    },
+  );
+
   it.each([false, true])(
     "allows orphan checks only without unread app shells (shells=%s)",
     async (hasShells) => {

@@ -13,7 +13,10 @@ import type { PageAnalysis, PageLink } from "@/server/lib/audit/types";
  * The previous cheerio implementation (minus passthrough fields), plus
  * separators around block elements so minified markup keeps word boundaries.
  */
-function analyzeHtmlWithCheerio(html: string, pageUrl: string): PageAnalysis {
+function analyzeHtmlWithCheerio(
+  html: string,
+  pageUrl: string,
+): Omit<PageAnalysis, "imagesMissingDimensions" | "invalidStructuredData"> {
   const $ = cheerio.load(html);
 
   const title = $("title").first().text().trim();
@@ -121,7 +124,12 @@ const PAGE_URL = "https://example.com/blog/post";
 function expectParity(html: string) {
   const streamed = analyzeHtml(html, PAGE_URL, 200, 0);
   const reference = analyzeHtmlWithCheerio(html, PAGE_URL);
-  const { javascriptShell: _javascriptShell, ...existingAnalysis } = streamed;
+  const {
+    javascriptShell: _javascriptShell,
+    imagesMissingDimensions: _imagesMissingDimensions,
+    invalidStructuredData: _invalidStructuredData,
+    ...existingAnalysis
+  } = streamed;
   expect(existingAnalysis).toEqual(reference);
 }
 
@@ -279,6 +287,64 @@ describe("analyzeHtml extraction caps", () => {
     );
     expect(analysis.links).toHaveLength(1_000);
     expect(analysis.images).toHaveLength(1_000);
+  });
+});
+
+const ld = (json: string) =>
+  `<script type="application/ld+json">${json}</script>`;
+
+describe("analyzeHtml JSON-LD and image dimensions", () => {
+  const analyze = (html: string) => analyzeHtml(html, PAGE_URL, 200, 0);
+
+  it("counts only JSON-LD blocks that fail to parse", () => {
+    const analysis = analyze(
+      `<head>${ld('{"@type":"Organization"}')}${ld('{"@type": "Org",}')}</head>`,
+    );
+    expect(analysis.hasStructuredData).toBe(true);
+    expect(analysis.invalidStructuredData).toBe(1);
+  });
+
+  // A page cut off at the download cap ends inside the block.
+  it("does not count a JSON-LD block the HTML ended inside", () => {
+    expect(
+      analyze('<script type="application/ld+json">{"@type":"Orga')
+        .invalidStructuredData,
+    ).toBe(0);
+  });
+
+  it("counts shown images that have no width or height", () => {
+    const analysis = analyze(
+      `<body>
+        <img src="/a.png">
+        <img src="/b.png" width="10">
+        <img src="/c.png" height="10">
+        <img alt="no src">
+        <img src="data:image/gif;base64,R0lGOD">
+        <img src="/pixel.gif" style="display: none">
+        <img src="/d.png" style="Width: 100%; color: red">
+        <img src="/e.png" style="aspect-ratio: 16 / 9">
+        <img src="/f.png" style="max-width: 100%">
+        <noscript><img src="/tracker.gif"></noscript>
+      </body>`,
+    );
+    expect(analysis.imagesMissingDimensions).toBe(2);
+  });
+
+  it("reads the JSON-LD type as a MIME type", () => {
+    const analysis = analyze(
+      '<script type=" Application/LD+JSON ; charset=utf-8">{</script>',
+    );
+    expect(analysis.hasStructuredData).toBe(true);
+    expect(analysis.invalidStructuredData).toBe(1);
+  });
+
+  it("reads rel as case-insensitive tokens", () => {
+    expect(
+      analyze('<link rel=" Canonical Nofollow " href="/c">').canonical,
+    ).toBe("/c");
+    expect(
+      analyze('<link rel="ALTERNATE" hreflang="fr" href="/fr">').hreflangTags,
+    ).toEqual(["fr"]);
   });
 });
 

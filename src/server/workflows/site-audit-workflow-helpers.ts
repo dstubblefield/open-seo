@@ -1,4 +1,8 @@
-import { MAX_HTML_BYTES, readTextUpTo } from "@/server/lib/audit/html-response";
+import {
+  MAX_HTML_BYTES,
+  readTextUpTo,
+  reachedByteCap,
+} from "@/server/lib/audit/html-response";
 import { classifyFetch } from "@/server/lib/audit/classify-fetch";
 import type { CrawledPageResult } from "@/server/lib/audit/types";
 import type { RenderedPage } from "@/server/lib/audit/rendered-page";
@@ -292,6 +296,7 @@ export async function crawlPage(
       isHtml: true,
       javascriptShell,
       htmlBytes: body.length,
+      truncated: reachedByteCap(body, MAX_HTML_BYTES),
       rateLimited,
       imagesTotal: analysis.images.length,
       // Only a truly absent alt attribute counts: alt="" is the correct
@@ -299,8 +304,10 @@ export async function crawlPage(
       imagesMissingAlt: analysis.images.filter((img) => img.alt === null)
         .length,
       images: analysis.images,
+      imagesMissingDimensions: analysis.imagesMissingDimensions,
       links: analysis.links,
       hasStructuredData: analysis.hasStructuredData,
+      invalidStructuredData: analysis.invalidStructuredData,
       hreflangTags: analysis.hreflangTags,
       isIndexable,
       responseTimeMs,
@@ -366,12 +373,15 @@ function emptyPageResult(input: {
     contentHash: null,
     isHtml: false,
     htmlBytes: input.htmlBytes ?? 0,
+    truncated: false,
     rateLimited: input.rateLimited ?? false,
     imagesTotal: 0,
     imagesMissingAlt: 0,
     images: [],
+    imagesMissingDimensions: 0,
     links: [],
     hasStructuredData: false,
+    invalidStructuredData: 0,
     hreflangTags: [],
     isIndexable: false,
     responseTimeMs: input.responseTimeMs,

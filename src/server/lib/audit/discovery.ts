@@ -68,6 +68,24 @@ async function fetchRobotsTxtText(
   }
 }
 
+/** True only on a clear 404/410; timeouts, blocks and 5xx say nothing. */
+async function fetchLlmsTxtMissing(
+  origin: string,
+  access: CrawlerAccess | null | undefined,
+): Promise<boolean> {
+  try {
+    const fetched = await fetchFollowingRedirects(
+      `${origin}/llms.txt`,
+      10_000,
+      access,
+    );
+    await fetched?.response.body?.cancel();
+    return fetched?.response.status === 404 || fetched?.response.status === 410;
+  } catch {
+    return false;
+  }
+}
+
 const MAX_DISCOVERY_REDIRECT_HOPS = 5;
 
 /**
@@ -274,10 +292,18 @@ export async function discoverUrls(
   origin: string,
   maxPages = 50,
   access?: CrawlerAccess | null,
-): Promise<{ urls: string[]; robotsText: string | null }> {
+): Promise<{
+  urls: string[];
+  robotsText: string | null;
+  llmsTxtMissing: boolean;
+}> {
   const waitForRateLimit = createRateLimitWait();
   const robotsText = await fetchRobotsTxtText(origin, access, waitForRateLimit);
   const robots = parseRobotsTxt(origin, robotsText);
+  // A file the crawler may not fetch is neither requested nor reported.
+  const llmsTxtMissing =
+    robots.isAllowed(`${origin}/llms.txt`) &&
+    (await fetchLlmsTxtMissing(origin, access));
 
   // Collect sitemap URLs: from robots.txt + default location
   const sitemapSources = new Set(robots.sitemapUrls);
@@ -368,5 +394,6 @@ export async function discoverUrls(
   return {
     urls: Array.from(allUrls),
     robotsText,
+    llmsTxtMissing,
   };
 }
