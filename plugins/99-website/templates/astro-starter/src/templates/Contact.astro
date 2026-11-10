@@ -1,0 +1,23 @@
+---
+import Base from "../layouts/Base.astro";
+import Img from "../components/Img.astro";
+import Breadcrumbs from "../components/Breadcrumbs.astro";
+import Sections from "../components/Sections.astro";
+import EstimateForm from "../components/EstimateForm.astro";
+import Socials from "../components/Socials.astro";
+import site from "../data/site.json";
+const { page, content } = Astro.props;
+const b = site.business;
+const tel = `tel:${b.phone.replace(/[^+\d]/g, "")}`;
+---
+<Base page={page} content={content}>
+<div class="mx-auto max-w-3xl px-4 py-6">
+  <Breadcrumbs page={page} />
+  <h1 class="mt-6 text-4xl font-semibold">{content.h1}</h1>
+  <p class="mt-4 text-lg">{content.intro}</p>
+  <p class="mt-4"><a href={tel} class="font-semibold underline">{b.phone}</a>{b.email && <> · <a href={`mailto:${b.email}`} class="underline">{b.email}</a></>}</p>
+  <Socials class="mt-6 text-brand" />
+  <div class="mt-10"><Sections sections={content.sections} /></div>
+</div>
+<EstimateForm heading="Send us your project" />
+</Base>

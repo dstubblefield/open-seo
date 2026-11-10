@@ -1,0 +1,77 @@
+#!/usr/bin/env node
+// Schema is a claims layer: it may only say what the page visibly says.
+//   node validate-jsonld.mjs sites/<slug> [--allow-ratings]
+//   node validate-jsonld.mjs --url <base> [--max-pages 50] [--allow-ratings]   headless Next.js, GET only
+import fs from "node:fs";
+import path from "node:path";
+import { pathToFileURL } from "node:url";
+import { strip, norm, jsonLdBlocks } from "./lib/html.mjs";
+import { crawl, urlArgs, crawlSummary } from "./lib/url-mode.mjs";
+
+const BUSINESS_TYPES = /LocalBusiness|HomeAndConstructionBusiness|LandscapeArchitect|GeneralContractor|ProfessionalService|MedicalBusiness|LegalService|FinancialService|HealthAndBeautyBusiness|AutomotiveBusiness|FoodEstablishment|Store/;
+
+export function validateJsonLd({ html, page, business, allowRatings = false }) {
+  const f = [];
+  const nodes = [];
+  let graphs = 0;
+  for (const raw of jsonLdBlocks(html)) {
+    let data;
+    try { data = JSON.parse(raw); } catch (e) { f.push(`JSON-LD does not parse: ${e.message}`); continue; }
+    if (data["@graph"]) graphs++;
+    nodes.push(...(data["@graph"] || [data]));
+  }
+  if (!nodes.length) return f.length ? f : ["no JSON-LD on the page"];
+  if (graphs !== 1) f.push(`${graphs} @graph blocks (want exactly 1)`);
+  const types = nodes.flatMap((n) => [].concat(n["@type"] || []));
+  const has = (t) => types.some((x) => (t instanceof RegExp ? t.test(x) : x === t));
+  for (const t of ["WebSite", "WebPage"]) if (!has(t)) f.push(`missing ${t}`);
+  if (!has(BUSINESS_TYPES)) f.push("missing LocalBusiness (or a subtype)");
+  if (page.url !== "/" && !has("BreadcrumbList")) f.push("missing BreadcrumbList");
+  if (page.type === "service" && !has("Service")) f.push("missing Service on a service page");
+  if (page.type === "blog") {
+    const art = nodes.find((n) => [].concat(n["@type"]).includes("Article"));
+    if (!art) f.push("missing Article on a blog post"); else if (!art.author) f.push("Article has no author");
+  }
+  const visible = norm(strip(html));
+  for (const n of nodes) {
+    if ([].concat(n["@type"]).includes("FAQPage")) for (const q of n.mainEntity || []) {
+      if (!visible.includes(norm(q.name))) f.push(`FAQ question in schema but not on the page: "${q.name.slice(0, 50)}"`);
+      if (!visible.includes(norm(q.acceptedAnswer?.text || ""))) f.push(`FAQ answer in schema but not on the page: "${q.name.slice(0, 50)}"`);
+    }
+    if (!allowRatings && (n.aggregateRating || n.review)) f.push("aggregateRating/review in schema but proof.md has no reviews (pass --allow-ratings only when it does)");
+    if (n.telephone && business.phone !== undefined && n.telephone !== business.phone) f.push(`telephone "${n.telephone}" differs from business phone "${business.phone}"`);
+  }
+  return f;
+}
+
+export async function validateJsonLdUrl({ base, maxPages = 50, allowRatings = false }) {
+  const failures = [];
+  const c = await crawl(base, maxPages);
+  if (c.error) return { failures: [`site: ${c.error}`], pages: 0, summary: "" };
+  for (const p of c.pages) {
+    if (p.problem) { failures.push(`${p.url}: ${p.problem}`); continue; }
+    for (const m of validateJsonLd({ html: p.html, page: p, business: {}, allowRatings })) failures.push(`${p.url}: ${m}`);
+  }
+  return { failures, pages: c.pages.length, summary: crawlSummary(c) };
+}
+
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href && process.argv.includes("--url")) {
+  const { base, maxPages } = urlArgs(process.argv);
+  const { failures, pages, summary } = await validateJsonLdUrl({ base, maxPages, allowRatings: process.argv.includes("--allow-ratings") });
+  console.log("skipped: needs site.json: telephone in schema must match the business phone");
+  for (const f of failures) console.log(`FAIL ${f}`);
+  console.log(failures.length ? `\n${failures.length} failure(s) (${summary})` : `schema valid (${summary})`);
+  process.exit(failures.length || !pages ? 1 : 0);
+} else if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  const siteDir = process.argv[2];
+  const site = JSON.parse(fs.readFileSync(path.join(siteDir, "site/src/data/site.json"), "utf8"));
+  const allowRatings = process.argv.includes("--allow-ratings");
+  let n = 0;
+  for (const page of site.pages) {
+    const file = path.join(siteDir, "site/dist", page.file);
+    if (!fs.existsSync(file)) { console.log(`FAIL ${page.url}: not built`); n++; continue; }
+    for (const m of validateJsonLd({ html: fs.readFileSync(file, "utf8"), page, business: site.business, allowRatings })) { console.log(`FAIL ${page.url}: ${m}`); n++; }
+  }
+  console.log(n ? `\n${n} failure(s)` : `schema valid on all ${site.pages.length} pages`);
+  process.exit(n ? 1 : 0);
+}
