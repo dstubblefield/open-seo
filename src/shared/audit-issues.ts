@@ -186,6 +186,22 @@ export const AUDIT_ISSUE_TYPES = {
     howToFix:
       'Add descriptive alt text to meaningful images; use an empty alt (alt="") only for purely decorative ones.',
   },
+  "missing-canonical": {
+    severity: "warning",
+    title: "Missing canonical tag",
+    explanation:
+      "The page does not say which web address is its official one, either in a canonical tag in the page or in an HTTP Link header. Without it, search engines have to guess when the same page is reachable through more than one address (with or without www, with tracking codes, with a trailing slash), and they may split your ranking between the copies.",
+    howToFix:
+      'Add a canonical tag to the page head that points at the page\'s own preferred address, for example <link rel="canonical" href="https://example.com/this-page/">. Most website builders and SEO plugins can add it to every page automatically.',
+  },
+  "invalid-structured-data": {
+    severity: "warning",
+    title: "Structured data is broken",
+    explanation:
+      "The page has a structured data block (JSON-LD) that cannot be read. Search engines ignore a broken block, so the rich results it was meant to earn, such as star ratings, business details or FAQs, will not appear.",
+    howToFix:
+      "Copy the block into Google's Rich Results Test or the Schema Markup Validator to see where it breaks. The usual causes are a missing comma or quote, a stray character, or a template that left an empty block. Fix it or remove it.",
+  },
   "orphan-page": {
     severity: "warning",
     title: "Orphan page",
@@ -273,6 +289,22 @@ export const AUDIT_ISSUE_TYPES = {
       "The page is 5+ clicks from the homepage. Deep pages get crawled less often and receive less link equity.",
     howToFix:
       "Add links from higher-level pages (hubs, category pages, navigation) to flatten the path to this page.",
+  },
+  "missing-structured-data": {
+    severity: "info",
+    title: "No structured data",
+    explanation:
+      "The page has no structured data (JSON-LD). Structured data tells search engines and AI assistants plainly who you are, what you sell and where you operate, and it is what makes rich results such as star ratings, business details and FAQs possible.",
+    howToFix:
+      "Add JSON-LD that matches the page, for example LocalBusiness on your home and contact pages, Service on service pages, and Article on blog posts. Most SEO plugins can generate it. Pages that use only older microdata markup are also flagged here.",
+  },
+  "images-missing-dimensions": {
+    severity: "info",
+    title: "Images missing width and height",
+    explanation:
+      "One or more images have neither a width nor a height set in the page. The browser cannot reserve space for them, so the page jumps around as they load, which frustrates visitors and counts against the page in Google's page experience measurements.",
+    howToFix:
+      "Add width and height attributes that match each image's real size, then let your styles scale it. Most website builders and image plugins do this automatically once it is switched on.",
   },
 } as const satisfies Record<string, AuditIssueDescriptor>;
 

@@ -10,6 +10,7 @@
  */
 import type { AuditIssueType } from "@/shared/audit-issues";
 import type { CrawledPageResult } from "@/server/lib/audit/types";
+import { MAX_HTML_BYTES } from "@/server/lib/audit/html-response";
 
 export interface DetectedIssue {
   issueType: AuditIssueType;
@@ -45,6 +46,40 @@ function hasHeadingLevelSkip(headingOrder: number[]): boolean {
     if (headingOrder[i] > headingOrder[i - 1] + 1) return true;
   }
   return false;
+}
+
+/**
+ * Markup that lives in the raw HTML. Only called for pages that are not app
+ * shells, which may add it once rendered.
+ */
+function reportRawMarkupIssues(
+  page: CrawledPageResult,
+  report: (
+    issueType: AuditIssueType,
+    details?: Record<string, unknown>,
+  ) => unknown,
+) {
+  if (
+    page.isIndexable &&
+    page.statusCode === 200 &&
+    !page.canonicalUrl &&
+    !page.headerCanonicalUrl
+  ) {
+    report("missing-canonical");
+  }
+  // A page cut off at the download cap may carry its JSON-LD past the cut.
+  if (
+    page.isIndexable &&
+    !page.hasStructuredData &&
+    page.htmlBytes < MAX_HTML_BYTES
+  ) {
+    report("missing-structured-data");
+  }
+  if (page.invalidStructuredData > 0) {
+    report("invalid-structured-data", {
+      invalidBlocks: page.invalidStructuredData,
+    });
+  }
 }
 
 export function runPageReporters(page: CrawledPageResult): DetectedIssue[] {
@@ -122,6 +157,8 @@ export function runPageReporters(page: CrawledPageResult): DetectedIssue[] {
     return issues;
   }
 
+  reportRawMarkupIssues(page, report);
+
   // Titles
   if (!page.title) {
     report("missing-title");
@@ -173,6 +210,12 @@ export function runPageReporters(page: CrawledPageResult): DetectedIssue[] {
   if (page.imagesMissingAlt > 0) {
     report("images-missing-alt", {
       imagesMissingAlt: page.imagesMissingAlt,
+      imagesTotal: page.imagesTotal,
+    });
+  }
+  if (page.imagesMissingDimensions > 0) {
+    report("images-missing-dimensions", {
+      imagesMissingDimensions: page.imagesMissingDimensions,
       imagesTotal: page.imagesTotal,
     });
   }

@@ -107,6 +107,22 @@ function countWords(text: string): number {
   return count;
 }
 
+/**
+ * An image with a src and neither width nor height. Inline data: images and
+ * hidden ones are tracking pixels or icons the page does not lay out around.
+ */
+function lacksDimensions(attribs: Record<string, string>): boolean {
+  const src = attribs["src"];
+  return (
+    Boolean(src) &&
+    !src.startsWith("data:") &&
+    !("width" in attribs) &&
+    !("height" in attribs) &&
+    !("hidden" in attribs) &&
+    !/display\s*:\s*none/i.test(attribs["style"] ?? "")
+  );
+}
+
 interface OpenAnchor {
   href: string;
   rel: string;
@@ -136,6 +152,9 @@ export function analyzeHtml(
   let ogDescription: string | null = null;
   let ogImage: string | null = null;
   let hasStructuredData = false;
+  // Text of the JSON-LD block being read, null outside one.
+  let jsonLdText: string[] | null = null;
+  let invalidStructuredData = 0;
   let hasAppRoot = false;
   let hasExecutableScript = false;
   const hreflangTags: string[] = [];
@@ -145,6 +164,7 @@ export function analyzeHtml(
   let openH1: string[] | null = null;
 
   const images: Array<{ src: string | null; alt: string | null }> = [];
+  let imagesMissingDimensions = 0;
   const linksByTarget = new Map<string, PageLink>();
   let openAnchor: OpenAnchor | null = null;
 
@@ -251,6 +271,7 @@ export function analyzeHtml(
                 src: attribs["src"] ?? null,
                 alt: "alt" in attribs ? attribs["alt"] : null,
               });
+              if (lacksDimensions(attribs)) imagesMissingDimensions += 1;
             }
             break;
           case "script":
@@ -262,6 +283,7 @@ export function analyzeHtml(
             ].includes(attribs["type"]?.toLowerCase() ?? "");
             if (attribs["type"] === "application/ld+json") {
               hasStructuredData = true;
+              jsonLdText = [];
             }
             break;
           case "a": {
@@ -286,6 +308,7 @@ export function analyzeHtml(
         }
       },
       ontext(text) {
+        jsonLdText?.push(text);
         if (suppressDepth > 0) return;
         if (titleDepth > 0) {
           if (title !== null) title += text;
@@ -295,7 +318,19 @@ export function analyzeHtml(
         if (openAnchor) openAnchor.text.push(text);
         addVisibleText(text);
       },
-      onclosetag(name) {
+      onclosetag(name, isImplied) {
+        if (name === "script" && jsonLdText) {
+          // An implied close means the HTML ended inside the block (a
+          // truncated download), which says nothing about the JSON itself.
+          if (!isImplied) {
+            try {
+              JSON.parse(jsonLdText.join(""));
+            } catch {
+              invalidStructuredData += 1;
+            }
+          }
+          jsonLdText = null;
+        }
         if (NON_CONTENT_TAGS.has(name) && suppressDepth > 0) {
           suppressDepth -= 1;
         }
@@ -352,8 +387,10 @@ export function analyzeHtml(
       linksByTarget.size === 0 &&
       images.length === 0,
     images,
+    imagesMissingDimensions,
     links: Array.from(linksByTarget.values()),
     hasStructuredData,
+    invalidStructuredData,
     hreflangTags,
   };
 }

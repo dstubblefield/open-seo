@@ -86,12 +86,16 @@ export interface PageAnalysis {
 
   // Images
   images: Array<{ src: string | null; alt: string | null }>;
+  /** Visible images with a src and neither a width nor a height attribute. */
+  imagesMissingDimensions: number;
 
   // Links (normalized, deduped by target)
   links: PageLink[];
 
   // Structured data
   hasStructuredData: boolean;
+  /** JSON-LD blocks that do not parse as JSON. */
+  invalidStructuredData: number;
 
   // Hreflang
   hreflangTags: string[];
@@ -167,8 +171,12 @@ export interface CrawledPageResult {
   imagesTotal: number;
   imagesMissingAlt: number;
   images: Array<{ src: string | null; alt: string | null }>;
+  /** Transient: feeds the page reporters, not persisted. */
+  imagesMissingDimensions: number;
   links: PageLink[];
   hasStructuredData: boolean;
+  /** Transient: feeds the page reporters, not persisted. */
+  invalidStructuredData: number;
   hreflangTags: string[];
   isIndexable: boolean;
   responseTimeMs: number;
