@@ -1,3 +1,4 @@
+/* oxlint-disable max-lines -- the audit phases share one workflow module */
 import type { WorkflowStep } from "cloudflare:workers";
 import type { BillingCustomerContext } from "@/server/billing/subscription";
 import { discoverUrls, parseRobotsTxt } from "@/server/lib/audit/discovery";
@@ -112,6 +113,7 @@ export async function runAuditPhases(
     startUrl,
     config,
     crawl,
+    llmsTxtMissing: discovery.llmsTxtMissing,
   });
 }
 
@@ -174,7 +176,11 @@ async function runDiscoveryPhase(
       pagesTotal: Math.min(seededCount, maxPages),
       currentPhase: "crawling",
     });
-    return { robotsText: result.robotsText, seededCount };
+    return {
+      robotsText: result.robotsText,
+      seededCount,
+      llmsTxtMissing: result.llmsTxtMissing,
+    };
   });
 }
 
@@ -332,6 +338,8 @@ async function finalizeAudit(args: {
   startUrl: string;
   config: AuditConfig;
   crawl: CrawlPhaseResult;
+  /** Undefined for an instance that replays a pre-llms.txt discovery step. */
+  llmsTxtMissing?: boolean;
 }) {
   const {
     step,
@@ -342,6 +350,7 @@ async function finalizeAudit(args: {
     startUrl,
     config,
     crawl,
+    llmsTxtMissing,
   } = args;
 
   await pgStep(step, "multipage-checks", MULTIPAGE_CHECKS_STEP, async () => {
@@ -380,6 +389,13 @@ async function finalizeAudit(args: {
       issueCount: linkIssues.length,
     });
     issues.push(...linkIssues);
+    if (llmsTxtMissing) {
+      issues.push({
+        issueType: "missing-llms-txt",
+        pageId: null,
+        pageUrl: `${getOrigin(startUrl)}/llms.txt`,
+      });
+    }
     if (crawl.stoppedBy) {
       issues.push({
         issueType: crawl.stoppedBy,

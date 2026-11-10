@@ -306,6 +306,14 @@ export const AUDIT_ISSUE_TYPES = {
     howToFix:
       "Add width and height attributes that match each image's real size, then let your styles scale it. Most website builders and image plugins do this automatically once it is switched on.",
   },
+  "missing-llms-txt": {
+    severity: "info",
+    title: "No llms.txt file",
+    explanation:
+      "The site has no /llms.txt file. It is a short plain text guide to your most important pages that AI assistants can read. It is optional and no search engine requires it, so treat this as a small opportunity, not a problem.",
+    howToFix:
+      "Publish a plain text file at /llms.txt on your domain with your business name, a one line summary, and links to your key pages. Skip it if you do not want to guide AI assistants.",
+  },
 } as const satisfies Record<string, AuditIssueDescriptor>;
 
 export type AuditIssueType = keyof typeof AUDIT_ISSUE_TYPES;

@@ -24,7 +24,7 @@ describe("discoverUrls", () => {
     vi.stubGlobal(
       "fetch",
       vi.fn((url: string) => {
-        if (url.endsWith("/robots.txt")) {
+        if (url.endsWith("/robots.txt") || url.endsWith("/llms.txt")) {
           return Promise.resolve(new Response("User-agent: *\nAllow: /"));
         }
         sitemapFetches += 1;
@@ -48,6 +48,29 @@ describe("discoverUrls", () => {
     const { urls } = await discovery;
 
     expect(urls).toEqual(["https://example.com/a"]);
+  });
+
+  // Only a clear 404 means "no llms.txt"; a block or server error says nothing.
+  it.each([
+    [404, true],
+    [200, false],
+    [403, false],
+    [503, false],
+  ])("reports llms.txt status %i as missing: %s", async (status, missing) => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url: string) =>
+        Promise.resolve(
+          new Response("", {
+            status: url.endsWith("/llms.txt") ? status : 404,
+          }),
+        ),
+      ),
+    );
+
+    const { llmsTxtMissing } = await discoverUrls("https://example.com", 10);
+
+    expect(llmsTxtMissing).toBe(missing);
   });
 
   // Seeding the frontier is what sets a page's in-sitemap flag, so a URL
