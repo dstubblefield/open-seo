@@ -79,6 +79,8 @@ const trailingSlashCanonical: Fixture = {
     htmlResponse(
       renderPage({
         fixture: trailingSlashCanonical,
+        // The page is served at the slash form, so that is its own canonical.
+        canonical: `${TRAILING_SLASH_CANONICAL}/`,
         title: "Trailing-slash canonical page",
         metaDescription:
           "The canonical version of this page ends in a trailing slash, and the non-slash form redirects to it, which trips up crawlers that strip slashes.",

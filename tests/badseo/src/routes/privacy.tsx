@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { SiteLayout } from "../components/site-layout";
+import { SITE_JSON_LD } from "../lib";
 
 export const Route = createFileRoute("/privacy")({
   head: () => ({
@@ -11,6 +12,8 @@ export const Route = createFileRoute("/privacy")({
           "How badseo.dev uses Plausible, Google Analytics, and Cloudflare and how visitors control analytics cookies.",
       },
     ],
+    links: [{ rel: "canonical", href: "/privacy" }],
+    scripts: [{ type: "application/ld+json", children: SITE_JSON_LD }],
   }),
   component: PrivacyPage,
 });

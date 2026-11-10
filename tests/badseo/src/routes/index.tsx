@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { SiteLayout } from "../components/site-layout";
 import { catalogLinkedFixtures, categories } from "../fixtures/registry";
+import { SITE_JSON_LD } from "../lib";
 
 const PRODUCT_DESCRIPTION =
   "A website with example technical SEO issues for you to learn or test your agents";
@@ -23,6 +24,8 @@ export const Route = createFileRoute("/")({
       { title: "BadSEO | Technical SEO test site" },
       { name: "description", content: PRODUCT_DESCRIPTION },
     ],
+    links: [{ rel: "canonical", href: "/" }],
+    scripts: [{ type: "application/ld+json", children: SITE_JSON_LD }],
   }),
   component: HomePage,
 });

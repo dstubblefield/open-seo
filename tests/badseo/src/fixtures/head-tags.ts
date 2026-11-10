@@ -317,6 +317,76 @@ const headingSkip: Fixture = {
     ),
 };
 
+// no JSON-LD block ------------------------------------------------------
+const missingStructuredData: Fixture = {
+  path: "/head/missing-structured-data",
+  category: CAT,
+  name: "Missing structured data",
+  summary: "The page has no JSON-LD block.",
+  lesson:
+    "Structured data states in a machine-readable way what a page is about. Search engines and AI assistants use it to understand a business, a product or an article without guessing.",
+  expectedIssues: ["missing-structured-data"],
+  handler: () =>
+    htmlResponse(
+      renderPage({
+        fixture: missingStructuredData,
+        jsonLd: null,
+        title: "A page with no structured data",
+        metaDescription:
+          "This page is healthy except that its head carries no JSON-LD block describing what the page is.",
+        bodyHtml: article({
+          h1: "A page with no structured data",
+          lede: "The text is fine. There is just no machine-readable summary of it.",
+          sections: [
+            {
+              h2: "What structured data adds",
+              body: "A JSON-LD block in the head names the kind of thing a page is, such as an organization, a product or an article, and lists its key facts. A search engine can read those facts directly instead of inferring them from the text, which makes the page eligible for richer results.",
+            },
+            {
+              h2: "Starting small",
+              body: "You do not need every type. Start with the organization on the home page and the matching type on each page that has one. Most CMS plugins can generate the block, and a free testing tool can check the result before you publish.",
+            },
+          ],
+        }),
+      }),
+    ),
+};
+
+// a JSON-LD block that is not valid JSON ---------------------------------
+const invalidStructuredData: Fixture = {
+  path: "/head/invalid-structured-data",
+  category: CAT,
+  name: "Invalid structured data",
+  summary: "The JSON-LD block cuts off before the JSON is complete.",
+  lesson:
+    "A JSON-LD block that does not parse is ignored entirely. It looks present in the source, but search engines get nothing from it.",
+  expectedIssues: ["invalid-structured-data"],
+  handler: () =>
+    htmlResponse(
+      renderPage({
+        fixture: invalidStructuredData,
+        jsonLd: '{"@context": "https://schema.org", "@type": "WebSite",',
+        title: "A page with broken structured data",
+        metaDescription:
+          "This page ships a JSON-LD block, but the JSON stops partway through, so no parser can read it.",
+        bodyHtml: article({
+          h1: "A page with broken structured data",
+          lede: "The block is there, but a parser cannot read it.",
+          sections: [
+            {
+              h2: "Present is not the same as valid",
+              body: "A missing comma, a stray quote or a trailing comma is enough to make the whole block unreadable. Browsers show nothing wrong, so the mistake can sit in a template for months while the page earns none of the benefit of its markup.",
+            },
+            {
+              h2: "Catching it",
+              body: "Run the page through a structured data testing tool after any template change, and have an audit check that every JSON-LD block parses. Fix the JSON itself rather than the page around it.",
+            },
+          ],
+        }),
+      }),
+    ),
+};
+
 export const headTagFixtures: Fixture[] = [
   missingTitle,
   titleTooLong,
@@ -328,4 +398,6 @@ export const headTagFixtures: Fixture[] = [
   emptyH1,
   multipleH1,
   headingSkip,
+  missingStructuredData,
+  invalidStructuredData,
 ];

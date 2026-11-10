@@ -28,13 +28,30 @@ export function lorem(words: number): string {
   return out.join(" ");
 }
 
+export const SITE_JSON_LD = JSON.stringify({
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  name: "badseo.dev",
+});
+
 interface DocumentOptions {
   /** Omit entirely to render NO <title> element (tests missing-title). */
   title?: string;
   /** Omit entirely to render NO meta description (tests missing-meta). */
   metaDescription?: string;
-  /** <link rel="canonical"> href. */
-  canonical?: string;
+  /**
+   * <link rel="canonical"> href. Defaults to `path` (a self-reference); pass
+   * null to render none (tests missing-canonical).
+   */
+  canonical?: string | null;
+  /** The URL path this document is served at, for the default canonical. */
+  path?: string;
+  /**
+   * Body of the JSON-LD block. Defaults to a valid WebSite object; pass null
+   * to render none (tests missing-structured-data) or broken JSON to test
+   * invalid-structured-data.
+   */
+  jsonLd?: string | null;
   /** <meta name="robots"> content. */
   robotsMeta?: string;
   /** Raw HTML injected at the end of <head> (extra tags, JSON-LD, etc.). */
@@ -61,8 +78,9 @@ export function renderDocument(opts: DocumentOptions): string {
     head.push(
       `<meta name="description" content="${escapeHtml(opts.metaDescription)}">`,
     );
-  if (opts.canonical)
-    head.push(`<link rel="canonical" href="${escapeHtml(opts.canonical)}">`);
+  const canonical = opts.canonical === undefined ? opts.path : opts.canonical;
+  if (canonical)
+    head.push(`<link rel="canonical" href="${escapeHtml(canonical)}">`);
   if (opts.robotsMeta)
     head.push(`<meta name="robots" content="${escapeHtml(opts.robotsMeta)}">`);
   head.push(
@@ -71,6 +89,9 @@ export function renderDocument(opts: DocumentOptions): string {
     '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo+Narrow:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=Newsreader:opsz,wght@6..72,500;6..72,600&display=swap">',
   );
   head.push('<link rel="stylesheet" href="/styles.css">');
+  const jsonLd = opts.jsonLd === undefined ? SITE_JSON_LD : opts.jsonLd;
+  if (jsonLd)
+    head.push(`<script type="application/ld+json">${jsonLd}</script>`);
   if (opts.headExtra) head.push(opts.headExtra);
 
   return `<!doctype html>
@@ -161,7 +182,11 @@ export function renderPage(opts: PageOptions): string {
 <main class="main">
 ${doc.bodyHtml}
 </main>`;
-  return renderDocument({ ...doc, bodyHtml: withChrome(inner) });
+  return renderDocument({
+    path: fixture.path,
+    ...doc,
+    bodyHtml: withChrome(inner),
+  });
 }
 
 /** Chrome-wrapped page with NO test panel — for the home and catalog pages. */
