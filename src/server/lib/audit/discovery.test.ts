@@ -73,6 +73,25 @@ describe("discoverUrls", () => {
     expect(llmsTxtMissing).toBe(missing);
   });
 
+  it("neither fetches nor reports llms.txt when robots.txt disallows it", async () => {
+    const fetchMock = vi.fn((url: string) =>
+      Promise.resolve(
+        url.endsWith("/robots.txt")
+          ? new Response("User-agent: *\nDisallow: /llms.txt")
+          : new Response("", { status: 404 }),
+      ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { llmsTxtMissing } = await discoverUrls("https://example.com", 10);
+
+    expect(llmsTxtMissing).toBe(false);
+    expect(fetchMock).not.toHaveBeenCalledWith(
+      "https://example.com/llms.txt",
+      expect.anything(),
+    );
+  });
+
   // Seeding the frontier is what sets a page's in-sitemap flag, so a URL
   // dropped here reports inSitemap: false once the crawl reaches it through a
   // link. Real sitemaps bury the homepage in the middle of the list

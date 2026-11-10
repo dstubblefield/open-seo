@@ -298,11 +298,12 @@ export async function discoverUrls(
   llmsTxtMissing: boolean;
 }> {
   const waitForRateLimit = createRateLimitWait();
-  const [robotsText, llmsTxtMissing] = await Promise.all([
-    fetchRobotsTxtText(origin, access, waitForRateLimit),
-    fetchLlmsTxtMissing(origin, access),
-  ]);
+  const robotsText = await fetchRobotsTxtText(origin, access, waitForRateLimit);
   const robots = parseRobotsTxt(origin, robotsText);
+  // A file the crawler may not fetch is neither requested nor reported.
+  const llmsTxtMissing =
+    robots.isAllowed(`${origin}/llms.txt`) &&
+    (await fetchLlmsTxtMissing(origin, access));
 
   // Collect sitemap URLs: from robots.txt + default location
   const sitemapSources = new Set(robots.sitemapUrls);
