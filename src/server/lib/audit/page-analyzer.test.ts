@@ -321,10 +321,30 @@ describe("analyzeHtml JSON-LD and image dimensions", () => {
         <img alt="no src">
         <img src="data:image/gif;base64,R0lGOD">
         <img src="/pixel.gif" style="display: none">
+        <img src="/d.png" style="Width: 100%; color: red">
+        <img src="/e.png" style="aspect-ratio: 16 / 9">
+        <img src="/f.png" style="max-width: 100%">
         <noscript><img src="/tracker.gif"></noscript>
       </body>`,
     );
-    expect(analysis.imagesMissingDimensions).toBe(1);
+    expect(analysis.imagesMissingDimensions).toBe(2);
+  });
+
+  it("reads the JSON-LD type as a MIME type", () => {
+    const analysis = analyze(
+      '<script type=" Application/LD+JSON ; charset=utf-8">{</script>',
+    );
+    expect(analysis.hasStructuredData).toBe(true);
+    expect(analysis.invalidStructuredData).toBe(1);
+  });
+
+  it("reads rel as case-insensitive tokens", () => {
+    expect(
+      analyze('<link rel=" Canonical Nofollow " href="/c">').canonical,
+    ).toBe("/c");
+    expect(
+      analyze('<link rel="ALTERNATE" hreflang="fr" href="/fr">').hreflangTags,
+    ).toEqual(["fr"]);
   });
 });
 

@@ -304,7 +304,7 @@ export const AUDIT_ISSUE_TYPES = {
     explanation:
       "One or more images have neither a width nor a height set in the page. The browser cannot reserve space for them, so the page jumps around as they load, which frustrates visitors and counts against the page in Google's page experience measurements.",
     howToFix:
-      "Add width and height attributes that match each image's real size, then let your styles scale it. Most website builders and image plugins do this automatically once it is switched on.",
+      "Add width and height attributes that match each image's real size, then let your styles scale it. Most website builders and image plugins do this automatically once it is switched on. Sizes set in your stylesheet can also reserve the space, and this check cannot see them, so it may flag an image that is already sized that way.",
   },
   "missing-llms-txt": {
     severity: "info",

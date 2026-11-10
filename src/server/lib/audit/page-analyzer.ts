@@ -119,8 +119,15 @@ function lacksDimensions(attribs: Record<string, string>): boolean {
     !("width" in attribs) &&
     !("height" in attribs) &&
     !("hidden" in attribs) &&
-    !/display\s*:\s*none/i.test(attribs["style"] ?? "")
+    !/display\s*:\s*none/i.test(attribs["style"] ?? "") &&
+    // A size set inline reserves space as well as an attribute does.
+    !/(?:^|;)\s*(?:width|height|aspect-ratio)\s*:/i.test(attribs["style"] ?? "")
   );
+}
+
+/** A MIME type: case-insensitive, and parameters like charset may follow. */
+function isJsonLdType(type: string | undefined): boolean {
+  return type?.split(";")[0].trim().toLowerCase() === "application/ld+json";
 }
 
 interface OpenAnchor {
@@ -205,9 +212,11 @@ export function analyzeHtml(
   };
 
   const handleLinkTag = (attribs: Record<string, string>) => {
-    if (attribs["rel"] === "canonical") {
+    // rel is a case-insensitive, whitespace-separated token list.
+    const rel = (attribs["rel"] ?? "").toLowerCase().split(/\s+/);
+    if (rel.includes("canonical")) {
       canonical ??= attribs["href"] ?? null;
-    } else if (attribs["rel"] === "alternate" && attribs["hreflang"]) {
+    } else if (rel.includes("alternate") && attribs["hreflang"]) {
       hreflangTags.push(attribs["hreflang"]);
     }
   };
@@ -281,7 +290,7 @@ export function analyzeHtml(
               "text/javascript",
               "application/javascript",
             ].includes(attribs["type"]?.toLowerCase() ?? "");
-            if (attribs["type"] === "application/ld+json") {
+            if (isJsonLdType(attribs["type"])) {
               hasStructuredData = true;
               jsonLdText = [];
             }
